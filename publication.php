@@ -39,9 +39,13 @@ class publication // Cette classe sert à gérer les publications.
 	private $Request;
 	private $Autorext = array('jpg','jpeg','gif','png');
 	
-	public function __construct(hangar $hangar, $nom, $auteur, $categorie, $modde, $subassembly, $description, $imgExt)
+	public function __construct(hangar $hangar) // On set le hangar dès le début, quand même
 	{
-		$this->Hangar = $hangar;
+		$this->Hangar = $hangar
+	}
+	
+	public function setDatas($nom, $auteur, $categorie, $modde, $subassembly, $description, $imgExt) // On met toutes les données qu'on a besoin
+	{
 		$this->Nom = $nom;
 		$this->Auteur = $auteur;
 		$this->Categorie = $categorie;
@@ -49,7 +53,7 @@ class publication // Cette classe sert à gérer les publications.
 		$this->Subassembly = $subassembly;
 		$this->Description = $description;
 		$this->ImgExt = $imgExt;
-		}
+	}
 	
 	public function getDatas() // retourne un tableau contenant toutes les données de la publication.
 	{
@@ -66,9 +70,10 @@ class publication // Cette classe sert à gérer les publications.
 		);
 	}
 	
-	public function push($craftname, $imgname)
+	public function push($craftname, $imgname) // On envoie la publication sur la bdd et le serveur
 	{
-		$this->Request = $this->Hangar->prepare('SELECT Nom FROM publications WHERE Nom = ?');
+		$BDD = $this->Hangar->getDB();
+		$this->Request = $BDD->prepare('SELECT Nom FROM publications WHERE Nom = ?'); // Vérification de si le nom existe déjà
 		$this->Request->execute(array($this->Nom));
 		$data = $this->Request->fetch();
 		$craftinfo = pathinfo($_FILES[$craftname]['name']);
@@ -80,9 +85,9 @@ class publication // Cette classe sert à gérer les publications.
 			$this->Request->closeCursor();
 			move_uploaded_file($_FILES[$craftname]['tmp_name'], 'publications/'.$this->Categorie.'/'.$this->Nom.'.craft'); // On met les fichiers ou il faut
 			move_uploaded_file($_FILES[$imgname]['tmp_name'], 'publications/'.$this->Categorie.'/'.$this->Nom.'.'.$extimg);
-			$this->Request = $this->Hangar->prepare("INSERT INTO publications(ID, Nom, Auteur, Categ, ImgExt, Descr, MODV, SUB) VALUES('', ? , ? , ? , ? , ? , ? , ? )"); // On ajoute tout ca dans la BDD
+			$this->Request = $BDD->prepare("INSERT INTO publications(ID, Nom, Auteur, Categ, ImgExt, Descr, MODV, SUB) VALUES('', ? , ? , ? , ? , ? , ? , ? )"); // On ajoute tout ca dans la BDD
 			$this->Request->execute(array($this->Nom,$this->Auteur,$this->Categorie,$this->ImgExt,$this->Description,$this->Modde,$this->Subassembly));
-			$this->Request = $this->Hangar->prepare('SELECT * FROM publications WHERE Nom = ?');
+			$this->Request = $BDD->prepare('SELECT * FROM publications WHERE Nom = ?');
 			$this->Request->execute(array($this->Nom));
 			$data2 = $this->Request->fetch();
 			return $data2['ID'];
@@ -90,8 +95,28 @@ class publication // Cette classe sert à gérer les publications.
 		else
 		{
 			$this->Request->closeCursor();
-			return "Error : Name already exist or the extensions don't match with autorized extensions.";
+			return "Error : Name already exist or the extensions don't match with the autorized extensions."; // Petit retour d'erreur, au cas où
 		}
+	}
+	
+	public function pull($id)
+	{
+		$BDD = $this->Hangar->getDB();
+		$this->Request = $BDD->prepare('SELECT * FROM publications WHERE ID = ?');
+		$this->Request->execute(array($id));
+		$data = $this->Request->fetch();
+		
+		$this->ID = $data['ID'];
+		$this->Nom = $data['Nom'];
+		$this->Auteur = $data['Auteur'];
+		$this->Categorie = $data['Categ'];
+		$this->Modde  = $data['MODV'];
+		$this->Subassembly = $data['SUB'];
+		$this->Description = $data['Descr'];
+		$this->ImgExt = $data['ImgExt'];
+		
+		$this->Request->closeCursor();
+		return $this->getDatas();
 	}
 }
 ?>

@@ -25,6 +25,7 @@ class hangar // Cet objet est unique par hangar, il servira à donner certaines 
 		return $this->PDO;
 	}
 }
+
 class publication // Cette classe sert à gérer les publications.
 {
 	private $Hangar;
@@ -117,6 +118,67 @@ class publication // Cette classe sert à gérer les publications.
 		
 		$this->Request->closeCursor();
 		return $this->getDatas();
+	}
+}
+
+class vote // La zolie classe de vote
+{
+	private $Hangar;
+	private $ID;
+	
+	public function __construct(hangar $hangar, $id) // On met les chôses fixes direct histoire de gagner du temps
+	{
+		$this->Hangar = $hangar;
+		$this->ID = $id;
+	}
+	
+	public function push($member, $value) // On met tout dans la BDD
+	{
+		$BDD = $this->Hangar->getDB();
+		$req = $BDD->prepare('SELECT * FROM votes WHERE Membre = ? AND IDpub = ?'); // On teste si le membre a déja voté pour la publication (ce serait bête de voter deux fois)
+		$req->execute(array($member, $this->ID));
+		$data = $req->fetch();
+		if($data['ID'] == NULL)
+		{
+			$req = $BDD->prepare("INSERT INTO votes(ID, IDpub, Membre, Note) VALUES('', ? , ? , ?)"); // On inscrit le vote
+			$req->execute(array($this->ID, $member, $value));
+		}
+		else
+		{
+			return "This member has already voted for this creation";
+		}
+	}
+	
+	public function getAverage()
+	{
+		$BDD = $this->Hangar->getDB();
+		$req = $BDD->prepare('SELECT * FROM votes WHERE IDpub = ?');
+		$req->execute(array($this->ID));
+		$value = 0.0;
+		$i = 0.0;
+		while($data = $req->fetch()) // On calcule la moyenne
+		{
+			$value = $value + $data['Note'];
+			$i++;
+		}
+		$average = $value / $i
+		return $average;
+	}
+	
+	public function getAlreadyVoted($member)
+	{
+		$BDD = $this->Hangar->getDB();
+		$req = $BDD->prepare('SELECT * FROM votes WHERE Membre = ? AND IDpub = ?'); // On teste si le membre a déja voté pour la publication
+		$req->execute(array($member, $this->ID));
+		$data = $req->fetch();
+		if($data['ID'] == NULL)
+		{
+			return False;
+		}
+		else
+		{
+			return True;
+		}
 	}
 }
 ?>
